@@ -1,41 +1,30 @@
-import hashlib
-import json
+# Программа на Python для создания блокчейна
+# Для временной метки
 import datetime
+# Вычисление хэша для добавления цифровой подписи к блокам
+import hashlib
+# Для хранения данных в блокчейне
+import json
+# Flask предназначен для создания веб-приложения, а jsonify - для
+# отображения блокчейнаn
 from flask import Flask, jsonify
-import pandas as pd
-import psycopg2
-
-app = Flask(__name__)
-
-# Подключение к базе данных PostgreSQL
-conn = psycopg2.connect(
-    dbname='gym_clients',
-    user='your_username',
-    password='your_password',
-    host='localhost',
-    port='5432'
-)
-cursor = conn.cursor()
-
 class Blockchain:
+# Эта функция ниже создана для создания самого первого блока и установки его хэша равным "0"
     def __init__(self):
         self.chain = []
         self.create_block(proof=1, previous_hash='0')
-
+# Эта функция ниже создана для добавления дополнительных блоков в цепочку
     def create_block(self, proof, previous_hash):
-        block = {
-            'index': len(self.chain) + 1,
-            'timestamp': str(datetime.datetime.now()),
-            'clients_data': self.get_clients_data(),  # Получаем данные о клиентах из базы данных
-            'proof': proof,
-            'previous_hash': previous_hash
-        }
+        block = {'index': len(self.chain) + 1,
+                 'timestamp': str(datetime.datetime.now()),
+                 'proof': proof,
+                 'previous_hash': previous_hash}
         self.chain.append(block)
         return block
-
+# Эта функция ниже создана для отображения предыдущего блока
     def print_previous_block(self):
         return self.chain[-1]
-
+# Это функция для проверки работы и используется для успешного майнинга блока
     def proof_of_work(self, previous_proof):
         new_proof = 1
         check_proof = False
@@ -47,11 +36,9 @@ class Blockchain:
             else:
                 new_proof += 1
         return new_proof
-
     def hash(self, block):
         encoded_block = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(encoded_block).hexdigest()
-
     def chain_valid(self, chain):
         previous_block = chain[0]
         block_index = 1
@@ -68,16 +55,11 @@ class Blockchain:
             previous_block = block
             block_index += 1
         return True
-
-    def get_clients_data(self):
-        cursor.execute('SELECT * FROM clients')
-        clients_data = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description]
-        clients_data = [dict(zip(columns, row)) for row in clients_data]
-        return clients_data
-
+# Создание веб-приложения с использованием flask
+app = Flask(__name__)
+# Создаем объект класса blockchain
 blockchain = Blockchain()
-
+# Майнинг нового блока
 @app.route('/mine_block', methods=['GET'])
 def mine_block():
     previous_block = blockchain.print_previous_block()
@@ -85,23 +67,19 @@ def mine_block():
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
     block = blockchain.create_block(proof, previous_hash)
-    response = {
-        'message': 'A block is MINED',
-        'index': block['index'],
-        'timestamp': block['timestamp'],
-        'proof': block['proof'],
-        'previous_hash': block['previous_hash']
-    }
+    response = {'message': 'A block is MINED',
+                'index': block['index'],
+                'timestamp': block['timestamp'],
+                'proof': block['proof'],
+                'previous_hash': block['previous_hash']}
     return jsonify(response), 200
-
-@app.route('/display_chain', methods=['GET'])
+# Отобразить блокчейн в формате json
+@app.route('/ display_chain', methods=['GET'])
 def display_chain():
-    response = {
-        'chain': blockchain.chain,
-        'length': len(blockchain.chain)
-    }
+    response = {'chain': blockchain.chain,
+                'length': len(blockchain.chain)}
     return jsonify(response), 200
-
+# Проверка валидности блокчейна
 @app.route('/valid', methods=['GET'])
 def valid():
     valid = blockchain.chain_valid(blockchain.chain)
@@ -110,6 +88,5 @@ def valid():
     else:
         response = {'message': 'The Blockchain is not valid.'}
     return jsonify(response), 200
-
-if name == "__main__":
-    app.run(debug=True)
+# Запустите сервер flask локально
+app.run(host='0.0.0.0')
